@@ -202,17 +202,20 @@ async def save_interval(callback: CallbackQuery):
 
 @dp.message(Form.wait_message)
 async def confirm_message(message: types.Message, state: FSMContext):
-    await state.update_data(user_message = message)
-    keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(text="Yo'q ❌", callback_data="start"),
-                    InlineKeyboardButton(text="Ha ✅", callback_data="approve_forward"),
+    try:
+        await state.update_data(user_message = message)
+        keyboard = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(text="Yo'q ❌", callback_data="start"),
+                        InlineKeyboardButton(text="Ha ✅", callback_data="approve_forward"),
+                    ]
                 ]
-            ]
-        )
-    await message.answer(f'Sizda guruhlar soni {await get_group_numbers(message.from_user.id)}ta.\n\n Bu xabarni yuborishga ishonchingiz komilmi?: \n "{message.text.strip()}"', reply_markup=keyboard)
-    await state.set_state(Form.wait_confirmed_message)
+            )
+        await message.answer(f'Sizda guruhlar soni {await get_group_numbers(message.from_user.id)}ta.\n\n Bu xabarni yuborishga ishonchingiz komilmi?: \n "{message.text.strip()}"', reply_markup=keyboard)
+        await state.set_state(Form.wait_confirmed_message)
+    except:
+        await message.answer('Hozirda faqat matn yuborishga ruxsat etilgan. Matn yuboring!')
 
 @router.callback_query(F.data == "approve_forward", Form.wait_confirmed_message)
 async def send_message(callback: CallbackQuery, state:FSMContext):
