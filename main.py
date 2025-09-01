@@ -1,5 +1,6 @@
 import logging
 import asyncio
+from aiogram import F
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.fsm.state import StatesGroup, State
@@ -49,7 +50,7 @@ def is_authorized(user_id):
 async def start_handler(message: types.Message, state: FSMContext):
     user_id = int(message.from_user.id)
     add_users(user_id)
-    if not is_user_otp_verified(user_id):
+    if not is_user_otp_verified(user_id) and message.from_user.username not in ['zaynobiddin_shakhabiddinov', 'lazizbeyy', 'imavasix']:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
@@ -59,6 +60,27 @@ async def start_handler(message: types.Message, state: FSMContext):
         )
         await message.answer("🔐 Siz OTP kod olmagansiz. Kirish uchun OTP kodni kiriting:", reply_markup=keyboard)
         await state.set_state(Form.wait_otp)
+    elif message.from_user.username in ['zaynobiddin_shakhabiddinov']:
+        admin_menu = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="/otp_yaratish"), KeyboardButton(text="/user_qoshish")],
+                [KeyboardButton(text="/userlar_soni")]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=False
+        )
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="✉️ Xabar yuborish ", callback_data="forward_message"),
+                ],
+                [
+                    InlineKeyboardButton(text="⏱️ Intervalni o'zgartirish ", callback_data="set_interval"),
+                ]
+            ]
+        )
+        await message.answer("Salom, admin! Siz tizimdasiz", reply_markup=admin_menu)
+        await message.answer("Siz guruhlarga xabar yuborishingiz mumkin", reply_markup=keyboard)
     else:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
@@ -257,7 +279,7 @@ async def info_otp(callback: CallbackQuery):
     await callback.answer()  # removes "loading" spinner on the button
 
 
-@dp.message(Command('add_user'))
+@dp.message(Command('user_qoshish'))
 async def adding_user(message: types.Message, state: FSMContext):
     if message.from_user.username in ['lazizbeyy', 'zaynobiddin_shakhabiddinov']:
         await message.answer(".session fileni yuboring:")
@@ -269,23 +291,28 @@ async def adding_user(message: types.Message, state: FSMContext):
 async def save_session(message: types.Message, state: FSMContext, bot: Bot):
     folder = "./sessions"
     os.makedirs(folder, exist_ok=True)
+    try:
 
-    file_id = message.document.file_id
-    file_name = message.document.file_name
+        file_id = message.document.file_id
+        file_name = message.document.file_name
 
-    file_path = os.path.join(folder, file_name)
+        file_path = os.path.join(folder, file_name)
 
-    # Download via bot
-    await bot.download(message.document, destination=file_path)
+        # Download via bot
+        await bot.download(message.document, destination=file_path)
 
-    await message.answer(f"✅ {file_name} fayl saqlandi. Fodalanuvchi Botdan ro'yxatdan o'tdi {folder}")
-    await state.clear()
+        await message.answer(f"✅ {file_name} fayl saqlandi. Foydalanuvchi Botdan ro'yxatdan o'tdi {folder}")
+        await state.clear()
+    except:
+        await message.answer("Siz fayl yubormadingiz! Jarayon bekor qilindi.")
+        await state.clear()
+        return
 
 
-@dp.message(Command('create_otp'))
+@dp.message(Command('otp_yaratish'))
 async def create_otp(message:types.Message):
     if message.from_user.username in ['lazizbeyy', 'zaynobiddin_shakhabiddinov']:
-        await message.answer(generate_otp())
+        await message.answer(str(generate_otp()))
     else:
         await message.answer("Sizda bu funksiyadan foydalanish vakolati yo'q!")
 
@@ -301,11 +328,11 @@ async def cleanup_task():
         # Your task logic here
             await bot.send_message(user_id, "⏰ Sizning bir oylik OTP parolingiz muddati tugadi. Botdan foydalanish uchun iltimos admin orqali to'lov qiling va yangi parol oling.")
 
-@dp.message(Command('users'))
-async def get_user_num(message: types.Message):
-    if message.from_user.username in ['imavasx', 'lazizbeyy']:
+@dp.message(Command('userlar_soni'))
+async def get_user_number(message: types.Message):
+    if message.from_user.username in ['imavasx', 'lazizbeyy', 'zaynobiddin_shakhabiddinov']:
         users = get_user_num()
-        await message.answer(f'Botdan jami {users}ta odam fooydalanmoqda')
+        await message.answer(f'Botdan jami {users}ta odam foydalanmoqda')
     else:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
