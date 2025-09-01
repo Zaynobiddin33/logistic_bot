@@ -60,7 +60,7 @@ async def start_handler(message: types.Message, state: FSMContext):
         )
         await message.answer("🔐 Siz OTP kod olmagansiz. Kirish uchun OTP kodni kiriting:", reply_markup=keyboard)
         await state.set_state(Form.wait_otp)
-    elif message.from_user.username in ['zaynobiddin_shakhabiddinov']:
+    elif message.from_user.username in ['zaynobiddin_shakhabiddinov', 'lazizbeyy', 'imavasix']:
         admin_menu = ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="/otp_yaratish"), KeyboardButton(text="/user_qoshish")],
@@ -284,7 +284,7 @@ async def info_otp(callback: CallbackQuery):
 
 @dp.message(Command('user_qoshish'))
 async def adding_user(message: types.Message, state: FSMContext):
-    if message.from_user.username in ['lazizbeyy', 'zaynobiddin_shakhabiddinov']:
+    if message.from_user.username in ['lazizbeyy', 'zaynobiddin_shakhabiddinov', 'imavasix']:
         await message.answer(".session fileni yuboring:")
         await state.set_state(Form.wait_file)
     else:
@@ -314,7 +314,7 @@ async def save_session(message: types.Message, state: FSMContext, bot: Bot):
 
 @dp.message(Command('otp_yaratish'))
 async def create_otp(message:types.Message):
-    if message.from_user.username in ['lazizbeyy', 'zaynobiddin_shakhabiddinov']:
+    if message.from_user.username in ['lazizbeyy', 'zaynobiddin_shakhabiddinov', 'imavasix']:
         await message.answer(str(generate_otp()))
     else:
         await message.answer("Sizda bu funksiyadan foydalanish vakolati yo'q!")
