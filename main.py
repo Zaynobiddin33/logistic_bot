@@ -129,21 +129,27 @@ async def start_callback(callback: CallbackQuery, state: FSMContext):
 @dp.message(Form.wait_otp)
 async def otp_confirm(message:types.Message, state: FSMContext):
     otp = message.text.strip()
-    otp = int(otp)
-    if is_free_otp(otp):
-        occupy_otp(message.from_user.id, otp)
-        keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="✉️ Xabar yuborish ", callback_data="forward_message"),
-            ],
-            [
-                InlineKeyboardButton(text="⏱️ Intervalni o'zgartirish ", callback_data="set_interval"),
+    try:
+        otp = int(otp)
+        if is_free_otp(otp):
+            occupy_otp(message.from_user.id, otp)
+            keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="✉️ Xabar yuborish ", callback_data="forward_message"),
+                ],
+                [
+                    InlineKeyboardButton(text="⏱️ Intervalni o'zgartirish ", callback_data="set_interval"),
+                ]
             ]
-        ]
-        )
-        await message.answer("Siz tizimdasiz. Siz guruhlarga xabar yuborishingiz mumkin", reply_markup=keyboard)
-        await state.clear()
+            )
+            await message.answer("Siz tizimdasiz. Siz guruhlarga xabar yuborishingiz mumkin", reply_markup=keyboard)
+        else:
+            await message.answer("Noto'g'ri OTP. Qaytadan kiriting:")
+    except:
+            await message.answer("Avval OTP kirgizing, keyin botdan foydalanasiz")
+
+    await state.clear()
 
     # except:
     #     message.answer("Parol noto'g'ri kiritilgan. Unda harflar qatnashmaydi. Iltimos haqiqiy parolni qaytadan yuboring.")
