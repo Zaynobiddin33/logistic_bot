@@ -157,7 +157,7 @@ async def otp_confirm(message:types.Message, state: FSMContext):
 
 @router.callback_query(F.data == "forward_message")
 async def get_message(callback: CallbackQuery, state: FSMContext):
-    if is_blocked_user(callback.from_user.id):
+    if not is_blocked_user(callback.from_user.id):
         if is_user_otp_verified(callback.from_user.id):
             if is_authorized(str(callback.from_user.id)):
                 await callback.message.edit_text("Tarqatmoqchi bo'lgan xabaringizni yuboring: ")
