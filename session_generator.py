@@ -4,6 +4,7 @@ import os
 from tokens import *
 
 async def main():
+    os.makedirs("sessions", exist_ok=True)
     # Log in once with temp_session
     temp_client = TelegramClient("sessions/temp_session", API_ID, API_HASH)
     await temp_client.start()

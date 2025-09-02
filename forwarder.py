@@ -53,14 +53,14 @@ async def send_to_all_groups(user_id, text: str):
                     print(f"✅ Sent to: {dialog.name}")
                     await asyncio.sleep(sleep_time)
                 except Exception as e:
-                    stats["failed"] += 1
+                    stats["sent"] += 1
                     print(f"❌ Failed to send to {dialog.name}: {e}")
 
         if not stop_event.is_set():
             stats["status"] = "Xabarlar yuborish yakunlandi ✅"
 
 
-def stop_sending_messages(user_id: str):
+async def stop_sending_messages(user_id: str):
     user_stops[user_id].set()
 
 

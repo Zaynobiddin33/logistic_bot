@@ -6,6 +6,7 @@ import os
 
 otps_dir = "otps.json"  # your JSON file
 users_dir = "users.json"  # your JSON file
+blocked_dir = 'blocked.json'
 
 def generate_otp():
     global otps_dir
@@ -137,3 +138,37 @@ def get_interval(id):
     for otp in otps:
         if otp['user_id'] == id:
             return otp['interval']
+        
+
+def block_user_from_sending(user_id: str):
+    global blocked_dir
+    user_id = int(user_id)
+    with open(blocked_dir, 'r') as file:
+        users = json.load(file)
+
+    if user_id not in users:  # avoid duplicates
+        users.append(user_id)
+
+    with open(blocked_dir, 'w') as file:
+        json.dump(users, file, indent=4)
+
+
+def unblock_user_from_sending(user_id: str) -> bool:
+    global blocked_dir
+    user_id = int(user_id)
+    with open(blocked_dir, 'r') as file:
+        users: list = json.load(file)
+
+    if user_id in users:
+        users.remove(user_id)
+        with open(blocked_dir, 'w') as file:
+            json.dump(users, file, indent=4)  # ✅ save changes
+        return True
+    return False
+
+def is_blocked_user(id:str):
+    global blocked_dir
+    id = int(id)
+    with open(blocked_dir, 'r') as file:
+        users: list = json.load(file)
+    return id in users

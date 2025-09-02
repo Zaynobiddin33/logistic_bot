@@ -39,6 +39,9 @@ class Form(StatesGroup):
     wait_message = State()
     wait_confirmed_message = State()
     wait_file = State()
+    wait_blocking_id = State()
+    wait_unblocking_id = State()
+
 
 def is_authorized(user_id):
     folder_path = "sessions"  # replace with your folder path
@@ -47,7 +50,7 @@ def is_authorized(user_id):
     return os.path.isfile(file_path)
 
 @dp.message(Command("start"))
-async def start_handler(message: types.Message, state: FSMContext):
+async def start_handler(message: types.Message, state: FSMContext, is_initial=True):
     user_id = int(message.from_user.id)
     add_users(user_id)
     if not is_user_otp_verified(user_id) and message.from_user.username not in ['zaynobiddin_shakhabiddinov', 'lazizbeyy', 'imavasix']:
@@ -63,8 +66,9 @@ async def start_handler(message: types.Message, state: FSMContext):
     elif message.from_user.username in ['zaynobiddin_shakhabiddinov', 'lazizbeyy', 'imavasix']:
         admin_menu = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="/otp_yaratish"), KeyboardButton(text="/user_qoshish")],
-                [KeyboardButton(text="/userlar_soni")]
+                [KeyboardButton(text="/otp_yaratish"), ],
+                [KeyboardButton(text="/userlar_soni"), KeyboardButton(text="/user_qoshish")],
+                [KeyboardButton(text="/block_user"), KeyboardButton(text="/unblock_user")],
             ],
             resize_keyboard=True,
             one_time_keyboard=False
@@ -79,7 +83,8 @@ async def start_handler(message: types.Message, state: FSMContext):
                 ]
             ]
         )
-        await message.answer("Salom, admin! Siz tizimdasiz", reply_markup=admin_menu)
+        if is_initial:
+            await message.answer("Salom, admin! Siz tizimdasiz", reply_markup=admin_menu)
         await message.answer("Siz guruhlarga xabar yuborishingiz mumkin", reply_markup=keyboard)
     else:
         keyboard = InlineKeyboardMarkup(
@@ -138,6 +143,7 @@ async def otp_confirm(message:types.Message, state: FSMContext):
         ]
         )
         await message.answer("Siz tizimdasiz. Siz guruhlarga xabar yuborishingiz mumkin", reply_markup=keyboard)
+        await state.clear()
 
     # except:
     #     message.answer("Parol noto'g'ri kiritilgan. Unda harflar qatnashmaydi. Iltimos haqiqiy parolni qaytadan yuboring.")
@@ -145,21 +151,24 @@ async def otp_confirm(message:types.Message, state: FSMContext):
 
 @router.callback_query(F.data == "forward_message")
 async def get_message(callback: CallbackQuery, state: FSMContext):
-    if is_user_otp_verified(callback.from_user.id):
-        if is_authorized(str(callback.from_user.id)):
-            await callback.message.edit_text("Tarqatmoqchi bo'lgan xabaringizni yuboring: ")
-            await state.set_state(Form.wait_message)
-        else:
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(text="Admin tomonidan login qilindim", callback_data="forward_message"),
+    if is_blocked_user(callback.from_user.id):
+        if is_user_otp_verified(callback.from_user.id):
+            if is_authorized(str(callback.from_user.id)):
+                await callback.message.edit_text("Tarqatmoqchi bo'lgan xabaringizni yuboring: ")
+                await state.set_state(Form.wait_message)
+            else:
+                keyboard = InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [
+                            InlineKeyboardButton(text="Admin tomonidan login qilindim", callback_data="forward_message"),
+                        ]
                     ]
-                ]
-            )
-            await callback.message.answer("Siz admin tomonidan login qilinmagansiz, iltimos adminga murojat qiling: @lazizbeyy \n\n Login qilinganingizdan so'ng pastdagi tugmani bosing.", reply_markup=keyboard)
+                )
+                await callback.message.answer("Siz admin tomonidan login qilinmagansiz, iltimos adminga murojat qiling: @lazizbeyy \n\n Login qilinganingizdan so'ng pastdagi tugmani bosing.", reply_markup=keyboard)
+        else:
+            await callback.message.answer('Sizning OTP parolingiz muddati tugagan. Olish uchun /start ustiga bosing!')
     else:
-        await callback.message.answer('Sizning OTP parolingiz muddati tugagan. Olish uchun /start ustiga bosing!')
+        await callback.message.answer("Siz ushbu botda bloklangansiz. Blokdan chiqarilganingizda biz sizga xabar beramiz. \n\nAgar buni xato deb o'ylasangiz adminga murojat qiling.")
 
 @router.callback_query(F.data == "set_interval")
 async def interval_list(callback:CallbackQuery):
@@ -350,6 +359,83 @@ async def get_user_number(message: types.Message):
         )
         await message.answer("Sizni bu funksiyadan foydalanishga huquqingiz yo'q", reply_markup=keyboard)
 
+@dp.message(Command('block_user'))
+async def block_user(message:types.Message, state:FSMContext):
+    if message.from_user.username in ['zaynobiddin_shakhabiddinov', 'imavasix', 'lazizbeyy']:
+        await message.answer("Block qilmoqchi bo'lgan user id'sini yuboring:")
+        await state.set_state(Form.wait_blocking_id)
+    else:
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="✉️ Xabar yuborish ", callback_data="forward_message"),
+                ],
+                [
+                InlineKeyboardButton(text="⏱️ Intervalni o'zgartirish ", callback_data="set_interval"),
+            ]
+                
+            ]
+        )
+        await message.answer("Sizni bu funksiyadan foydalanishga huquqingiz yo'q", reply_markup=keyboard)
+
+@dp.message(Form.wait_blocking_id)
+async def finish_blocking(message: types.Message, state:FSMContext):
+    try:
+        id = int(message.text)
+        block_user_from_sending(id)
+        await message.answer("✅ Foydalanuvchi bloklandi.")
+        await state.clear()
+        await start_handler(message, state, is_initial = False)
+        return
+    except:
+        await message.answer("❌ Xatolik. ID raqamni qaytadan kiriting(harf va simvollarsiz):")
+
+
+
+@dp.message(Command('unblock_user'))
+async def unblock_user(message:types.Message, state:FSMContext):
+    if message.from_user.username in ['zaynobiddin_shakhabiddinov', 'imavasix', 'lazizbeyy']:
+        await message.answer("Blokdan chiqarmoqchi bo'lgan user id'sini yuboring:")
+        await state.set_state(Form.wait_unblocking_id)
+    else:
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="✉️ Xabar yuborish ", callback_data="forward_message"),
+                ],
+                [
+                InlineKeyboardButton(text="⏱️ Intervalni o'zgartirish ", callback_data="set_interval"),
+            ]
+                
+            ]
+        )
+        await message.answer("Sizni bu funksiyadan foydalanishga huquqingiz yo'q", reply_markup=keyboard)
+
+@dp.message(Form.wait_unblocking_id)
+async def finish_unblocking(message: types.Message, state:FSMContext):
+    try:
+        id = int(message.text)
+        data = unblock_user_from_sending(id)
+        if data:
+            await message.answer("✅ Foydalanuvchi blokdan chiqarildi.")
+            try:
+                bot.send_message(chat_id = id, text="Hurmatli foydalanuvchi, siz blokdan chiqarildingiz.\n/start ushbu tugmani bosib, botdan foydalanishingiz mumkin.")
+            except:
+                pass
+            await state.clear()
+            await start_handler(message, state, is_initial = False)
+        else:
+            keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="⬅️ Bekor qilish ", callback_data="start"),
+                ],
+                
+            ]
+        )
+            await message.answer("❌ Bunday foydalanuvchi botda hali bloklanmagan. Qaytadan kiriting:", reply_markup=keyboard)
+    except:
+        await message.answer("❌ Xatolik. ID raqamni qaytadan kiriting(harf va simvollarsiz):")
 
 
 
