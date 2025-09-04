@@ -18,6 +18,8 @@ from tokens import *
 from forwarder import *
 import os
 
+admins = ['zaynobiddin_shakhabiddinov', 'lazizbeyy', 'azmvvx']
+
 
 # Your API ID and API Hash
 BOT_TOKEN = BOT_TOKEN
@@ -53,7 +55,7 @@ def is_authorized(user_id):
 async def start_handler(message: types.Message, state: FSMContext, is_initial=True):
     user_id = int(message.from_user.id)
     add_users(user_id)
-    if not is_user_otp_verified(user_id) and message.from_user.username not in ['zaynobiddin_shakhabiddinov', 'lazizbeyy', 'imavasix']:
+    if not is_user_otp_verified(user_id) and message.from_user.username not in admins:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
@@ -172,7 +174,7 @@ async def get_message(callback: CallbackQuery, state: FSMContext):
                 )
                 await callback.message.answer("Siz admin tomonidan login qilinmagansiz, iltimos adminga murojat qiling: @lazizbeyy \n\n Login qilinganingizdan so'ng pastdagi tugmani bosing.", reply_markup=keyboard)
         else:
-            await callback.message.answer('Sizning OTP parolingiz muddati tugagan. Olish uchun /start ustiga bosing!')
+            await callback.message.answer('Sizning OTP parolingiz muddati tugagan. Olish uchun @lazizbeyy ga murojat qiliing. Hamda /start tugmasini bosing!')
     else:
         await callback.message.answer("Siz ushbu botda bloklangansiz. Blokdan chiqarilganingizda biz sizga xabar beramiz. \n\nAgar buni xato deb o'ylasangiz adminga murojat qiling.")
 
@@ -299,7 +301,7 @@ async def info_otp(callback: CallbackQuery):
 
 @dp.message(Command('user_qoshish'))
 async def adding_user(message: types.Message, state: FSMContext):
-    if message.from_user.username in ['lazizbeyy', 'zaynobiddin_shakhabiddinov', 'imavasix']:
+    if message.from_user.username in admins:
         await message.answer(".session fileni yuboring:")
         await state.set_state(Form.wait_file)
     else:
@@ -329,7 +331,7 @@ async def save_session(message: types.Message, state: FSMContext, bot: Bot):
 
 @dp.message(Command('otp_yaratish'))
 async def create_otp(message:types.Message):
-    if message.from_user.username in ['lazizbeyy', 'zaynobiddin_shakhabiddinov', 'imavasix']:
+    if message.from_user.username in admins:
         await message.answer(str(generate_otp()))
     else:
         await message.answer("Sizda bu funksiyadan foydalanish vakolati yo'q!")
@@ -348,7 +350,7 @@ async def cleanup_task():
 
 @dp.message(Command('userlar_soni'))
 async def get_user_number(message: types.Message):
-    if message.from_user.username in ['imavasx', 'lazizbeyy', 'zaynobiddin_shakhabiddinov']:
+    if message.from_user.username in admins:
         users = get_user_num()
         await message.answer(f'Botdan jami {users}ta odam foydalanmoqda')
     else:
@@ -367,7 +369,7 @@ async def get_user_number(message: types.Message):
 
 @dp.message(Command('block_user'))
 async def block_user(message:types.Message, state:FSMContext):
-    if message.from_user.username in ['zaynobiddin_shakhabiddinov', 'imavasix', 'lazizbeyy']:
+    if message.from_user.username in admins:
         await message.answer("Block qilmoqchi bo'lgan user id'sini yuboring:")
         await state.set_state(Form.wait_blocking_id)
     else:
@@ -400,7 +402,7 @@ async def finish_blocking(message: types.Message, state:FSMContext):
 
 @dp.message(Command('unblock_user'))
 async def unblock_user(message:types.Message, state:FSMContext):
-    if message.from_user.username in ['zaynobiddin_shakhabiddinov', 'imavasix', 'lazizbeyy']:
+    if message.from_user.username in admins:
         await message.answer("Blokdan chiqarmoqchi bo'lgan user id'sini yuboring:")
         await state.set_state(Form.wait_unblocking_id)
     else:
