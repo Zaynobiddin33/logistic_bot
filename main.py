@@ -51,6 +51,137 @@ def is_authorized(user_id):
     file_path = os.path.join(folder_path, session_name)
     return os.path.isfile(file_path)
 
+
+
+#LOGIN
+class LoginState(StatesGroup):
+    waiting_for_contact = State()
+    waiting_for_code = State()
+    waiting_for_password = State()
+
+# Store temp clients by user_id
+temp_clients = {}
+
+@dp.message(Command("login"))
+async def start_login(message: types.Message, state: FSMContext):
+    if os.path.exists(f'/sessions/{message.from_user.id}.session'):
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🏠 Menyuga o'tish", callback_data="start"),
+                ]
+            ]
+        )
+        await message.answer("Siz allaqachon registratsiya qilingansiz, botdan foydalanishingiz mumkin.", reply_markup=keyboard)
+    else:
+        kb = types.ReplyKeyboardMarkup(
+            keyboard=[[types.KeyboardButton(text="📱 Telefon raqamni yuborish", request_contact=True)]],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
+        await state.set_state(LoginState.waiting_for_contact)
+        await message.answer("📲 Telefon raqamingizni yuboring:", reply_markup=kb)
+
+@dp.message(F.contact, LoginState.waiting_for_contact)
+async def process_contact(message: types.Message, state: FSMContext):
+    phone = message.contact.phone_number
+    if not phone.startswith("+"):
+        phone = "+" + phone
+
+    session_name = f"sessions/temp_{message.from_user.id}"
+    os.makedirs("sessions", exist_ok=True)
+
+    client = TelegramClient(session_name, API_ID, API_HASH)
+    await client.connect()
+    temp_clients[message.from_user.id] = client
+
+    try:
+        await client.send_code_request(phone)
+        await state.update_data(phone=phone)
+        await state.set_state(LoginState.waiting_for_code)
+        await message.answer("✅ Kod yuborildi.\nIltimos, tasdiqlash kodini raqamlar orasida joy tashlab jo'nating!\n\n(misol: 1 2 3 4 5):", reply_markup=types.ReplyKeyboardRemove())
+    except Exception as e:
+        await message.answer(f"❌ Xatolik: {e}")
+        await client.disconnect()
+
+@dp.message(LoginState.waiting_for_code)
+async def process_code(message: types.Message, state: FSMContext):
+    user_data = await state.get_data()
+    phone = user_data["phone"]
+    code = message.text.strip().replace(" ", "")
+    client = temp_clients[message.from_user.id]
+
+    try:
+        await client.sign_in(phone, code)
+        me = await client.get_me()
+
+        old_path = f"sessions/temp_{message.from_user.id}.session"
+        new_path = f"sessions/{me.id}.session"
+        if os.path.exists(old_path):
+            os.rename(old_path, new_path)
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🏠 Menyuga o'tish", callback_data="start"),
+                ]
+            ]
+        )
+        await message.answer(f"✅ Muvaffaqiyatli login qildingiz: {me.first_name}", reply_markup=keyboard)
+        await client.disconnect()
+        del temp_clients[message.from_user.id]
+        await state.clear()
+    except SessionPasswordNeededError:
+        await message.answer("🔐 Ikki bosqichli parol kerak. Parolni yuboring:")
+        await state.set_state(LoginState.waiting_for_password)
+    except Exception as e:
+        await message.answer(f"❌ Xatolik: {e}")
+        await message.answer(f"Login qilishda xatolik yuz berdi. Qayta urinish uchun /login yozuvini bosing")
+        if os.path.exists(old_path):
+            os.remove(old_path)
+        await client.disconnect()
+        del temp_clients[message.from_user.id]
+        await state.clear()
+
+@dp.message(LoginState.waiting_for_password)
+async def process_password(message: types.Message, state: FSMContext):
+    password = message.text.strip()
+    client = temp_clients[message.from_user.id]
+
+    try:
+        await client.sign_in(password=password)
+        me = await client.get_me()
+
+        old_path = f"sessions/temp_{message.from_user.id}.session"
+        new_path = f"sessions/{me.id}.session"
+        if os.path.exists(old_path):
+            os.rename(old_path, new_path)
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🏠 Menyuga o'tish", callback_data="start"),
+                ]
+            ]
+        )
+        await message.answer(f"✅ Login muvaffaqiyatli yakunlandi: {me.first_name}", reply_markup=keyboard)
+
+    except Exception as e:
+        await message.answer(f"❌ Xatolik: {e}")
+        await message.answer("Login qilishda xatolik yuz berdi. Qayta urinish uchun /login yozuvini bosing")
+
+        old_path = f"sessions/temp_{message.from_user.id}.session"
+        if os.path.exists(old_path):
+            os.remove(old_path)
+
+    finally:
+        # Always disconnect and clear temp client
+        await client.disconnect()
+        temp_clients.pop(message.from_user.id, None)
+        await state.clear()
+
+
+
+
 @dp.message(Command("start"))
 async def start_handler(message: types.Message, state: FSMContext, is_initial=True):
     user_id = int(message.from_user.id)
@@ -69,7 +200,7 @@ async def start_handler(message: types.Message, state: FSMContext, is_initial=Tr
         admin_menu = ReplyKeyboardMarkup(
             keyboard=[
                 [KeyboardButton(text="/otp_yaratish"), ],
-                [KeyboardButton(text="/userlar_soni"), KeyboardButton(text="/user_qoshish")],
+                [KeyboardButton(text="/userlar_soni"), ],
                 [KeyboardButton(text="/block_user"), KeyboardButton(text="/unblock_user")],
             ],
             resize_keyboard=True,
@@ -165,14 +296,7 @@ async def get_message(callback: CallbackQuery, state: FSMContext):
                 await callback.message.edit_text("Tarqatmoqchi bo'lgan xabaringizni yuboring: ")
                 await state.set_state(Form.wait_message)
             else:
-                keyboard = InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [
-                            InlineKeyboardButton(text="Admin tomonidan login qilindim", callback_data="forward_message"),
-                        ]
-                    ]
-                )
-                await callback.message.answer("Siz admin tomonidan login qilinmagansiz, iltimos adminga murojat qiling: @lazizbeyy \n\n Login qilinganingizdan so'ng pastdagi tugmani bosing.", reply_markup=keyboard)
+                await callback.message.answer("Siz hali login qilmagansiz, iltimos login qilish uchun /login yozuvini bosing!")
         else:
             await callback.message.answer('Sizning OTP parolingiz muddati tugagan. Olish uchun @lazizbeyy ga murojat qiliing. Hamda /start tugmasini bosing!')
     else:
@@ -219,7 +343,7 @@ async def save_interval(callback: CallbackQuery):
 
 @dp.message(Form.wait_message)
 async def confirm_message(message: types.Message, state: FSMContext):
-    try:
+    # try:
         await state.update_data(user_message = message)
         keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
@@ -231,8 +355,8 @@ async def confirm_message(message: types.Message, state: FSMContext):
             )
         await message.answer(f'Sizda guruhlar soni: {await get_group_numbers(message.from_user.id)}ta.\n\nYuboriladigan xabarlar soni: {await get_group_numbers(message.from_user.id)*24}ta\n\nBu xabarni yuborishga ishonchingiz komilmi?: \n "{message.text.strip()}"', reply_markup=keyboard)
         await state.set_state(Form.wait_confirmed_message)
-    except:
-        await message.answer('Hozirda faqat matn yuborishga ruxsat etilgan. Matn yuboring!')
+    # except:
+    #     await message.answer('Hozirda faqat matn yuborishga ruxsat etilgan. Matn yuboring!')
 
 @router.callback_query(F.data == "approve_forward", Form.wait_confirmed_message)
 async def send_message(callback: CallbackQuery, state:FSMContext):
@@ -297,36 +421,6 @@ async def info_otp(callback: CallbackQuery):
             ])
     await callback.message.edit_text("Siz 1 oylik OTP, ya'ni 1 oylik botdan foydalanish huquqini adminlar @imavasx va @lazizbeyy ga murojaat qilib olishingiz mumkin.", reply_markup=keyboard)
     await callback.answer()  # removes "loading" spinner on the button
-
-
-@dp.message(Command('user_qoshish'))
-async def adding_user(message: types.Message, state: FSMContext):
-    if message.from_user.username in admins:
-        await message.answer(".session fileni yuboring:")
-        await state.set_state(Form.wait_file)
-    else:
-        await message.answer("Sizda bu funksiyani ishlatish vakolati yo'q!")
-
-@dp.message(Form.wait_file)
-async def save_session(message: types.Message, state: FSMContext, bot: Bot):
-    folder = "./sessions"
-    os.makedirs(folder, exist_ok=True)
-    try:
-
-        file_id = message.document.file_id
-        file_name = message.document.file_name
-
-        file_path = os.path.join(folder, file_name)
-
-        # Download via bot
-        await bot.download(message.document, destination=file_path)
-
-        await message.answer(f"✅ {file_name} fayl saqlandi. Foydalanuvchi Botdan ro'yxatdan o'tdi {folder}")
-        await state.clear()
-    except:
-        await message.answer("Siz fayl yubormadingiz! Jarayon bekor qilindi.")
-        await state.clear()
-        return
 
 
 @dp.message(Command('otp_yaratish'))
