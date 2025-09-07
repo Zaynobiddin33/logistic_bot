@@ -1,9 +1,18 @@
 from telethon.tl.types import Channel
 import asyncio
 from telethon import TelegramClient
-from datetime import datetime
+from datetime import datetime, timedelta
 from tokens import *
 from functions import get_interval
+import time
+
+async def smart_sleep(seconds: float, stop_event: asyncio.Event):
+    """Sleep in small chunks so it can stop early if event is set"""
+    chunk = 0.5  # half a second
+    slept = 0
+    while slept < seconds and not stop_event.is_set():
+        await asyncio.sleep(min(chunk, seconds - slept))
+        slept += chunk
 
 
 async def get_group_numbers(user_id):
@@ -36,25 +45,35 @@ async def send_to_all_groups(user_id, text: str):
 
     sleep_time = get_interval(user_id)
     async with TelegramClient(f'sessions/{user_id}', API_ID, API_HASH) as client:
-        async for dialog in client.iter_dialogs():
-            entity = dialog.entity
-            if isinstance(entity, Channel) and entity.megagroup and entity.username:
-                stats["all_messages"] += 1
+        # cache dialogs once
+        dialogs = [
+            d for d in [d async for d in client.iter_dialogs()]
+            if isinstance(d.entity, Channel) and d.entity.megagroup and d.entity.username
+        ]
+        stats["all_messages"] = len(dialogs)*24
 
-        async for dialog in client.iter_dialogs():
-            entity = dialog.entity
-            if isinstance(entity, Channel) and entity.megagroup and entity.username:
+        end_time = datetime.now() + timedelta(days=1)
+        while datetime.now() < end_time:
+            beginning = datetime.now()
+
+            for dialog in dialogs:
                 if stop_event.is_set():
                     stats["status"] = "Xabarlar yuborish to'xtatildi ❌"
-                    break
+                    return
                 try:
                     await client.send_message(dialog.id, text)
                     stats["sent"] += 1
                     print(f"✅ Sent to: {dialog.name}")
-                    await asyncio.sleep(sleep_time)
                 except Exception as e:
                     stats["sent"] += 1
                     print(f"❌ Failed to send to {dialog.name}: {e}")
+                await asyncio.sleep(sleep_time)
+
+            # enforce 1-hour minimum cycle
+            elapsed = datetime.now() - beginning
+            if elapsed < timedelta(hours=1):
+                print(f"{(timedelta(hours=1) - elapsed).total_seconds()} seconds sleep")
+                await smart_sleep((timedelta(hours=1) - elapsed).total_seconds(), stop_event)
 
         if not stop_event.is_set():
             stats["status"] = "Xabarlar yuborish yakunlandi ✅"

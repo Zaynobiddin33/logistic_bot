@@ -229,7 +229,7 @@ async def confirm_message(message: types.Message, state: FSMContext):
                     ]
                 ]
             )
-        await message.answer(f'Sizda guruhlar soni {await get_group_numbers(message.from_user.id)}ta.\n\n Bu xabarni yuborishga ishonchingiz komilmi?: \n "{message.text.strip()}"', reply_markup=keyboard)
+        await message.answer(f'Sizda guruhlar soni: {await get_group_numbers(message.from_user.id)}ta.\n\nYuboriladigan xabarlar soni: {await get_group_numbers(message.from_user.id)*24}ta\n\nBu xabarni yuborishga ishonchingiz komilmi?: \n "{message.text.strip()}"', reply_markup=keyboard)
         await state.set_state(Form.wait_confirmed_message)
     except:
         await message.answer('Hozirda faqat matn yuborishga ruxsat etilgan. Matn yuboring!')
