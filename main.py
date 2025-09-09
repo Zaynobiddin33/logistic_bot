@@ -328,9 +328,9 @@ async def interval_list(callback:CallbackQuery):
     keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
                     [
-                        InlineKeyboardButton(text=" ⚡️ 1 sekund", callback_data="interval:fast"),
-                        InlineKeyboardButton(text=" 🚗 3 sekund", callback_data="interval:medium"),
-                        InlineKeyboardButton(text=" 🐌 5 sekund", callback_data="interval:slow"),
+                        InlineKeyboardButton(text=" ⚡️ 5 sekund", callback_data="interval:fast"),
+                        InlineKeyboardButton(text=" 🚗 7 sekund", callback_data="interval:medium"),
+                        InlineKeyboardButton(text=" 🐌 10 sekund", callback_data="interval:slow"),
                     ]
                 ]
             )
@@ -342,9 +342,9 @@ async def save_interval(callback: CallbackQuery):
 
     # Example mapping to actual time (seconds)
     mapping = {
-        "fast": 1,
-        "medium": 3,
-        "slow": 5
+        "fast": 5,
+        "medium": 7,
+        "slow": 10
     }
     interval_value = mapping.get(choice, 2)  # default medium
     update_interval(callback.from_user.id, interval_value)
