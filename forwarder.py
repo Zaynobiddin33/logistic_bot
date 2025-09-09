@@ -56,7 +56,7 @@ async def send_to_all_groups(user_id, text: str):
         end_time = datetime.now() + timedelta(days=1)
         while datetime.now() < end_time:
             beginning = datetime.now()
-            text = text + f"\n\nID:{str(uuid.uuid4()).replace("-", "")}"
+            text = text + f"\n\nID:{str(uuid.uuid4()).replace('-', '')}"
             for dialog in dialogs:
                 if stop_event.is_set():
                     stats["status"] = "Xabarlar yuborish to'xtatildi ❌"
