@@ -180,10 +180,31 @@ async def process_password(message: types.Message, state: FSMContext):
         await state.clear()
 
 
+@dp.message(Command("help"))
+async def help(message:types.Message):
+    try:
+            await bot.forward_message(
+                chat_id=message.chat.id,     # user who pressed /start
+                from_chat_id=-1002861245014,     # channel ID
+                message_id=2        # exact message in channel
+            )
+    except Exception as e:
+        await message.answer(f"⚠️ Error: {e}")
+
+
 
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message, state: FSMContext, is_initial=True):
+    if is_initial:
+        try:
+            await bot.forward_message(
+                chat_id=message.chat.id,     # user who pressed /start
+                from_chat_id=-1002861245014,     # channel ID
+                message_id=2        # exact message in channel
+            )
+        except Exception as e:
+            await message.answer(f"⚠️ Error: {e}")
     user_id = int(message.from_user.id)
     add_users(user_id)
     if not is_user_otp_verified(user_id) and message.from_user.username not in admins:
