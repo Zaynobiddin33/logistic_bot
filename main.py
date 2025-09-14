@@ -328,9 +328,9 @@ async def interval_list(callback:CallbackQuery):
     keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
                     [
-                        InlineKeyboardButton(text=" ⚡️ 5 sekund", callback_data="interval:fast"),
-                        InlineKeyboardButton(text=" 🚗 7 sekund", callback_data="interval:medium"),
-                        InlineKeyboardButton(text=" 🐌 10 sekund", callback_data="interval:slow"),
+                        InlineKeyboardButton(text=" ⚡️ 5-10 sekund", callback_data="interval:fast"),
+                        InlineKeyboardButton(text=" 🚗 7-12 sekund", callback_data="interval:medium"),
+                        InlineKeyboardButton(text=" 🐌 10-15 sekund", callback_data="interval:slow"),
                     ]
                 ]
             )

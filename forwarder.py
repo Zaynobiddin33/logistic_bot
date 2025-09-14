@@ -6,6 +6,46 @@ from tokens import *
 from functions import get_interval
 import uuid
 import time
+from telethon.tl.functions.channels import GetParticipantRequest
+from telethon.tl.types import ChatBannedRights
+from telethon.tl.types import ChatBannedRights, Channel, ChannelParticipantCreator, ChannelParticipantAdmin
+import random
+
+async def can_send_messages(client, chat_id):
+    chat = await client.get_entity(chat_id)
+
+    # Case 1: If it's a broadcast channel (not a megagroup) => only admins can post
+    if isinstance(chat, Channel) and not chat.megagroup:
+        return False
+
+    # Case 2: Check default (global) banned rights
+    if getattr(chat, "default_banned_rights", None):
+        banned = chat.default_banned_rights
+        if isinstance(banned, ChatBannedRights) and banned.send_messages:
+            return False
+
+    # Case 3: Check specific participant rights
+    try:
+        participant = await client(GetParticipantRequest(chat_id, "me"))
+        p = participant.participant
+
+        # Creators and admins can always send
+        if isinstance(p, (ChannelParticipantCreator, ChannelParticipantAdmin)):
+            return True
+
+        # Explicitly banned?
+        if getattr(p, "banned_rights", None) and p.banned_rights.send_messages:
+            return False
+
+        return True
+    except Exception as e:
+        # e.g. not a participant, kicked, etc.
+        print(f"⚠️ Failed to check {chat_id}: {e}")
+        return False
+
+
+def random_interval(number:int):
+    return random.randint(number, number+5)
 
 async def smart_sleep(seconds: float, stop_event: asyncio.Event):
     """Sleep in small chunks so it can stop early if event is set"""
@@ -61,13 +101,17 @@ async def send_to_all_groups(user_id, text: str):
                     stats["status"] = "Xabarlar yuborish to'xtatildi ❌"
                     return
                 try:
+                    if not await can_send_messages(client, dialog.id):
+                        stats["failed"] += 1
+                        print(f"⚠️ Skipped {dialog.name} (no send rights)")
+                        continue
                     await client.send_message(dialog.id, text + f"\n\nID:{str(uuid.uuid4()).replace('-', '')}")
                     stats["sent"] += 1
                     print(f"✅ Sent to: {dialog.name}")
                 except Exception as e:
-                    stats["sent"] += 1
+                    stats["failed"] += 1
                     print(f"❌ Failed to send to {dialog.name}: {e}")
-                await asyncio.sleep(sleep_time)
+                await asyncio.sleep(random_interval(sleep_time))
 
             # enforce 1-hour minimum cycle
             elapsed = datetime.now() - beginning
