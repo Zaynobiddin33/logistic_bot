@@ -317,7 +317,7 @@ async def get_message(callback: CallbackQuery, state: FSMContext):
                 await callback.message.edit_text("Tarqatmoqchi bo'lgan xabaringizni yuboring: ")
                 await state.set_state(Form.wait_message)
             else:
-                await callback.message.answer("Siz hali login qilmagansiz, iltimos login qilish uchun /login yozuvini bosing!")
+                await callback.message.answer("Siz hali login qilmagansiz, iltimos login qilish uchun akkount qo'shish tugmasini bosing!")
         else:
             await callback.message.answer('Sizning OTP parolingiz muddati tugagan. Olish uchun @lazizbeyy ga murojat qiliing. Hamda /start tugmasini bosing!')
     else:
@@ -365,6 +365,19 @@ async def save_interval(callback: CallbackQuery):
 @dp.message(Form.wait_message)
 async def confirm_message(message: types.Message, state: FSMContext):
     # try:
+    if has_link(message.text):
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="✉️ Boshqa xabar yuborish", callback_data="forward_message"),
+                ],
+                [
+                    InlineKeyboardButton(text="🏠 Bosh menyuga qaytish", callback_data="set_interval"),
+                ]
+            ]
+            )
+        await message.answer("❌ Sizning xabaringizda link aniqlandi.\n\nIltimos xabarni tekshirib, qaytadan jo'nating. ", reply_markup=keyboard)
+    else:
         await state.update_data(user_message = message)
         keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
@@ -374,8 +387,21 @@ async def confirm_message(message: types.Message, state: FSMContext):
                     ]
                 ]
             )
-        await message.answer(f'Sizda guruhlar soni: {await get_group_numbers(message.from_user.id)}ta.\n\nYuboriladigan xabarlar soni: {await get_group_numbers(message.from_user.id)*24}ta\n\nBu xabarni yuborishga ishonchingiz komilmi?: \n "{message.text.strip()}"', reply_markup=keyboard)
-        await state.set_state(Form.wait_confirmed_message)
+        group_numbers = await get_group_numbers(message.from_user.id)
+        if group_numbers>0:
+            await message.answer(f'Sizda guruhlar soni: {group_numbers}ta.\n\nYuboriladigan xabarlar soni: {group_numbers*24}ta\n\nBu xabarni yuborishga ishonchingiz komilmi?: \n "{message.text.strip()}"', reply_markup=keyboard)
+            await state.set_state(Form.wait_confirmed_message)
+        elif group_numbers < 0:
+            await message.answer("❌ Xatolik: Ehtimol siz login sessionni o'chirib yuborgansiz. Iltimos /login bosib qayta login qiling!")
+        elif group_numbers == 0:
+            back_btn = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(text="🏠 Bosh menyuga qaytish", callback_data="start")
+                    ]
+                ]
+            )
+            await message.answer("Sizda ommaviy guruhlar mavjud emas. Avval iltimos ommaviy guruhlarga qo'shiling.", reply_markup=back_btn)
     # except:
     #     await message.answer('Hozirda faqat matn yuborishga ruxsat etilgan. Matn yuboring!')
 
@@ -383,7 +409,6 @@ async def confirm_message(message: types.Message, state: FSMContext):
 async def send_message(callback: CallbackQuery, state:FSMContext):
     data = await state.get_data()
     message = data.get("user_message")
-
     # Now forward THAT copy from userbot’s chat with the bot
     keyboard = InlineKeyboardMarkup(
             inline_keyboard=[

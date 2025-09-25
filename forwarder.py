@@ -56,14 +56,23 @@ async def smart_sleep(seconds: float, stop_event: asyncio.Event):
         slept += chunk
 
 
-async def get_group_numbers(user_id):
+async def get_group_numbers(user_id: str) -> int:
     count = 0
-    async with TelegramClient(f'sessions/{user_id}', API_ID, API_HASH) as client:
-        async for dialog in client.iter_dialogs():
-            entity = dialog.entity
-            if isinstance(entity, Channel) and entity.megagroup and entity.username:
-                count += 1
-        return count
+    client = TelegramClient(f"sessions/{user_id}", API_ID, API_HASH)
+
+    await client.connect()
+    if not await client.is_user_authorized():
+        # ❌ Stop here if not logged in
+        await client.disconnect()
+        return -1
+
+    async for dialog in client.iter_dialogs():
+        entity = dialog.entity
+        if isinstance(entity, Channel) and entity.megagroup and entity.username:
+            count += 1
+
+    await client.disconnect()
+    return count
 
 from collections import defaultdict
 
@@ -102,14 +111,14 @@ async def send_to_all_groups(user_id, text: str):
                     return
                 try:
                     if not await can_send_messages(client, dialog.id):
-                        stats["failed"] += 1
+                        stats["sent"] += 1
                         print(f"⚠️ Skipped {dialog.name} (no send rights)")
                         continue
                     await client.send_message(dialog.id, text + f"\n\nID:{str(uuid.uuid4()).replace('-', '')}")
                     stats["sent"] += 1
                     print(f"✅ Sent to: {dialog.name}")
                 except Exception as e:
-                    stats["failed"] += 1
+                    stats["sent"] += 1
                     print(f"❌ Failed to send to {dialog.name}: {e}")
                 await asyncio.sleep(random_interval(sleep_time))
 

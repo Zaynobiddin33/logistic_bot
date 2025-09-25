@@ -3,6 +3,15 @@ import random
 import datetime
 from datetime import timedelta
 import os
+import re
+
+def has_link(text: str) -> bool:
+    # Regex for URL
+    url_pattern = r"(https?://[^\s]+|www\.[^\s]+)"
+    # Regex for @mention (letters, numbers, underscores, dots)
+    mention_pattern = r"@\w[\w.]*"
+    return re.search(url_pattern, text) is not None or re.search(mention_pattern, text) is not None
+
 
 otps_dir = "otps.json"  # your JSON file
 users_dir = "users.json"  # your JSON file
