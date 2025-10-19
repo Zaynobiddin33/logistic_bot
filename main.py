@@ -18,7 +18,7 @@ from tokens import *
 from forwarder import *
 import os
 
-admins = ['zaynobiddin_shakhabiddinov', 'lazizbeyy', 'azmvvx']
+admins = ['zaynobiddin_shakhabiddinov', 'Nurmuxammad_1399']
 
 
 # Your API ID and API Hash
@@ -119,14 +119,12 @@ async def process_code(message: types.Message, state: FSMContext):
         new_path = f"sessions/{me.id}.session"
         if os.path.exists(old_path):
             os.rename(old_path, new_path)
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(text="🏠 Menyuga o'tish", callback_data="start"),
-                ]
-            ]
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="/start")]],
+            resize_keyboard=True,
+            one_time_keyboard=True
         )
-        await message.answer(f"✅ Muvaffaqiyatli login qildingiz: {me.first_name}", reply_markup=keyboard)
+        await message.answer(f"✅ Muvaffaqiyatli login qildingiz: {me.first_name} \n\nDavom etish uchun quyidagi /start tugmasini bosing", reply_markup=keyboard)
         await client.disconnect()
         del temp_clients[message.from_user.id]
         await state.clear()
@@ -156,14 +154,12 @@ async def process_password(message: types.Message, state: FSMContext):
         if os.path.exists(old_path):
             os.rename(old_path, new_path)
 
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(text="🏠 Menyuga o'tish", callback_data="start"),
-                ]
-            ]
+        keyboard = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="/start")]],
+            resize_keyboard=True,
+            one_time_keyboard=True
         )
-        await message.answer(f"✅ Login muvaffaqiyatli yakunlandi: {me.first_name}", reply_markup=keyboard)
+        await message.answer(f"✅ Login muvaffaqiyatli yakunlandi: {me.first_name} \n\nDavom etish uchun quyidagi /start tugmasini bosing", reply_markup=keyboard)
 
     except Exception as e:
         await message.answer(f"❌ Xatolik: {e}")
@@ -196,15 +192,6 @@ async def help(message:types.Message):
 
 @dp.message(Command("start"))
 async def start_handler(message: types.Message, state: FSMContext, is_initial=True):
-    if is_initial:
-        try:
-            await bot.forward_message(
-                chat_id=message.chat.id,     # user who pressed /start
-                from_chat_id=-1002861245014,     # channel ID
-                message_id=2        # exact message in channel
-            )
-        except Exception as e:
-            await message.answer(f"⚠️ Error: {e}")
     user_id = int(message.from_user.id)
     add_users(user_id)
     if not is_user_otp_verified(user_id) and message.from_user.username not in admins:
@@ -217,10 +204,10 @@ async def start_handler(message: types.Message, state: FSMContext, is_initial=Tr
         )
         await message.answer("🔐 Siz OTP kod olmagansiz. Kirish uchun OTP kodni kiriting:", reply_markup=keyboard)
         await state.set_state(Form.wait_otp)
-    elif message.from_user.username in ['zaynobiddin_shakhabiddinov', 'lazizbeyy', 'imavasix']:
+    elif message.from_user.username in admins:
         admin_menu = ReplyKeyboardMarkup(
             keyboard=[
-                [KeyboardButton(text="/otp_yaratish"), ],
+                [KeyboardButton(text="/otp_yaratish"), KeyboardButton(text="/foydalanilmagan_otplar")],
                 [KeyboardButton(text="/userlar_soni"), ],
                 [KeyboardButton(text="/block_user"), KeyboardButton(text="/unblock_user")],
             ],
@@ -317,9 +304,14 @@ async def get_message(callback: CallbackQuery, state: FSMContext):
                 await callback.message.edit_text("Tarqatmoqchi bo'lgan xabaringizni yuboring: ")
                 await state.set_state(Form.wait_message)
             else:
-                await callback.message.answer("Siz hali login qilmagansiz, iltimos login qilish uchun akkount qo'shish tugmasini bosing!")
+                await callback.message.answer("Siz hali login qilmagansiz, iltimos login qilish uchun /login  bosing!")
         else:
-            await callback.message.answer('Sizning OTP parolingiz muddati tugagan. Olish uchun @lazizbeyy ga murojat qiliing. Hamda /start tugmasini bosing!')
+            if callback.from_user.username in admins:
+                otp = generate_otp()
+                occupy_otp(callback.from_user.id, otp)
+                await get_message(callback, state)
+            else:
+                await callback.message.answer('Sizning OTP parolingiz muddati tugagan. Olish uchun @lazizbeyy ga murojat qiliing. Hamda /start tugmasini bosing!')
     else:
         await callback.message.answer("Siz ushbu botda bloklangansiz. Blokdan chiqarilganingizda biz sizga xabar beramiz. \n\nAgar buni xato deb o'ylasangiz adminga murojat qiling.")
 
@@ -462,31 +454,36 @@ async def info_otp(callback: CallbackQuery):
     keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="OTP'ni adminlardan oldim. Botdan foydalanish...", callback_data="start"),
+                    InlineKeyboardButton(text="OTP'ni admindan oldim. Botdan foydalanish...", callback_data="start"),
                 ]
             ])
-    await callback.message.edit_text("Siz 1 oylik OTP, ya'ni 1 oylik botdan foydalanish huquqini adminlar @imavasx va @lazizbeyy ga murojaat qilib olishingiz mumkin.", reply_markup=keyboard)
+    await callback.message.edit_text("Siz OTP, ya'ni botdan foydalanish huquqini @Nurmuxammad_1399 ga murojaat qilib olishingiz mumkin.", reply_markup=keyboard)
     await callback.answer()  # removes "loading" spinner on the button
 
 
 @dp.message(Command('otp_yaratish'))
 async def create_otp(message:types.Message):
     if message.from_user.username in admins:
-        await message.answer(str(generate_otp()))
+        if otp_len() >=10:
+            await message.answer("10tadan ko'p otp yaratish mumkin emas!")
+        else:
+            await message.answer(str(generate_otp()))
     else:
         await message.answer("Sizda bu funksiyadan foydalanish vakolati yo'q!")
 
+@dp.message(Command('foydalanilmagan_otplar'))
+async def unused_otps(message:types.Message):
+    if message.from_user.username in admins:
+        otps = free_otps()
+        if otps:
+            print('otp work')
+            for i in otps:
+                await message.answer(f'{i}')
+        else:
+            await message.answer('Barcha otplardan allaqachon foydalanilgan!')
+    else:
+        await message.answer("Sizda bu funksiyadan foydalanish vakolati yo'q!")
 
-async def cleanup_task():
-    while True:
-        now = datetime.utcnow()
-        next_midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        wait_seconds = (next_midnight - now).total_seconds()
-        await asyncio.sleep(wait_seconds)
-        users = sortify_otp()
-        for user_id in users:
-        # Your task logic here
-            await bot.send_message(user_id, "⏰ Sizning bir oylik OTP parolingiz muddati tugadi. Botdan foydalanish uchun iltimos admin orqali to'lov qiling va yangi parol oling.")
 
 @dp.message(Command('userlar_soni'))
 async def get_user_number(message: types.Message):
@@ -588,7 +585,7 @@ async def finish_unblocking(message: types.Message, state:FSMContext):
 
 
 async def main():
-    asyncio.create_task(cleanup_task()) 
+
     await dp.start_polling(bot)
 
 if __name__ == "__main__":

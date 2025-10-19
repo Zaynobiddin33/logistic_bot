@@ -35,7 +35,7 @@ def generate_otp():
         "otp": otp,
         "created_at": None,
         "user_id":None,
-        'interval':2
+        'interval':7
     }
     otps_json.append(new_data)
 
@@ -181,3 +181,28 @@ def is_blocked_user(id:str):
     with open(blocked_dir, 'r') as file:
         users: list = json.load(file)
     return id in users
+
+def otp_len():
+    with open('otps.json', 'r') as file:
+        data = json.load(file)
+    return len(data)
+
+def free_otps():
+    with open('otps.json', 'r') as file:
+        data = json.load(file)
+    otps = []
+    for otp in data:
+        if not otp['user_id']:
+            otps.append(otp['otp'])
+    return otps
+
+def otp_for_admin(user_id):
+    code = generate_otp()
+    with open('otps.json', 'r') as file:
+        data = json.load(file)
+    for otp in data:
+        if otp['otp'] == code:
+            otp['user_id'] = user_id
+    with open('otps.json', 'w') as file:
+        json.dump(data, file, indent=4)
+    

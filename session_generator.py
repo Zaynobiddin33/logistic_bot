@@ -1,7 +1,7 @@
 from telethon import TelegramClient
 import asyncio
 import os
-from tokens import *
+from logistic_bot.tokens import *
 
 async def main():
     os.makedirs("sessions", exist_ok=True)
