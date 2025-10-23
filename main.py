@@ -202,7 +202,7 @@ async def start_handler(message: types.Message, state: FSMContext, is_initial=Tr
                 ]
             ]
         )
-        await message.answer("🔐 Siz OTP kod olmagansiz. Kirish uchun OTP kodni kiriting:", reply_markup=keyboard)
+        await message.answer("🔐 Siz OTP kod yo'q yoki u eskirgan. Kirish uchun OTP kod oling va uni kiriting:", reply_markup=keyboard)
         await state.set_state(Form.wait_otp)
     elif message.from_user.username in admins:
         admin_menu = ReplyKeyboardMarkup(
@@ -251,7 +251,7 @@ async def start_callback(callback: CallbackQuery, state: FSMContext):
                 ]
             ]
         )
-        await callback.message.answer("🔐 Siz OTP kod olmagansiz. Kirish uchun OTP kodni kiriting:", reply_markup=keyboard)
+        await callback.message.answer("🔐 Siz OTP kod olmagansiz yoki u eskirgan. Kirish uchun OTP kodni oling va uni kiriting:", reply_markup=keyboard)
         await state.set_state(Form.wait_otp)
     else:
         keyboard = InlineKeyboardMarkup(
@@ -457,15 +457,15 @@ async def info_otp(callback: CallbackQuery):
                     InlineKeyboardButton(text="OTP'ni admindan oldim. Botdan foydalanish...", callback_data="start"),
                 ]
             ])
-    await callback.message.edit_text("Siz OTP, ya'ni botdan foydalanish huquqini @Nurmuxammad_1399 ga murojaat qilib olishingiz mumkin.", reply_markup=keyboard)
+    await callback.message.edit_text("Siz OTP, ya'ni botdan foydalanish huquqini @lazizbeyy ga murojaat qilib olishingiz mumkin.", reply_markup=keyboard)
     await callback.answer()  # removes "loading" spinner on the button
 
 
 @dp.message(Command('otp_yaratish'))
 async def create_otp(message:types.Message):
     if message.from_user.username in admins:
-        if otp_len() >=10:
-            await message.answer("10tadan ko'p otp yaratish mumkin emas!")
+        if otp_len() >=1000:
+            await message.answer("1000tadan ko'p otp yaratish mumkin emas!")
         else:
             await message.answer(str(generate_otp()))
     else:
