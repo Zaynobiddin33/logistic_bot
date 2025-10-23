@@ -18,7 +18,7 @@ from tokens import *
 from forwarder import *
 import os
 
-admins = ['zaynobiddin_shakhabiddinov', 'Nurmuxammad_1399']
+admins = ['zaynobiddin_shakhabiddinov', 'lazizbeyy']
 
 
 # Your API ID and API Hash
